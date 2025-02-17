@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Cannon Ball</title>
+    </head>
+
+    <body>
+        <canvas id="myCanvas" style="border:2px solid"></canvas>
+
+        <script>
+            //canvas setup
+            //get canvas and store it in a var
+            const canvas = document.getElementById("myCanvas");
+            const c = canvas.getContext("2d");
+            //get window size
+            canvas.width = window.innerWidth - 20; //padding
+            canvas.height = window.innerHeight - 100;
+
+            //Need to map coords from html coord sys (top left is (0,0)) to physics (bottom left (0,0)) 
+            var simulationMinWidth = 20.0;
+            //scale k factor from html -> simulatior
+            var cScale = Math.min(canvas.width, canvas.height) / simulationMinWidth;
+            //scale
+            var simWidth = canvas.width / cScale;
+            var simHeight = canvas.height / cScale;
+
+            function simX(position) {
+                return position.x * cScale;
+            }
+
+            function simY(position) {
+                //subtract to take into account top -> bottom
+                return canvas.height - (position.y * cScale);
+            }
+
+            //scene -------------------------------------------------------
+            const gravity = {x: 0.0 , y: -9.8}; //acceleration due to gravity
+            const timeStep = 1.0 / 60.0;  //seconds
+
+            class ball {  //ball properties
+                constructor(radius, position, velocity) {
+                    this.radius = radius;
+                    this.position = position; // bottom left (closest to 0,0 b/c radius is 0.2)
+                    this.velocity = velocity;
+                } //init velocity for the ball
+
+                draw() {
+                    //clear canvas
+                    //color
+                    c.fillStyle = '#FF0000';
+                    //Draw the ball 
+                    c.beginPath();
+                    c.arc(
+                        simX(this.position), simY(this.position), this.radius * cScale, 0.0, 2.0 * Math.PI);
+                    c.closePath();
+                    c.fill();
+                }
+                
+                collisions(otherBall) {
+                    //distance between ball centers
+                    const distX = otherBall.position.x - this.position.x;
+                    const distY = otherBall.position.y - this.position.y;
+                    const distance = Math.sqrt(distX * distX + distY * distY); //pythagorean
+
+                    //checker
+                    const minDistance = this.radius + otherBall.radius; //least distance is touching
+                    if (distance < minDistance) {
+                        //normalize distance vectors (x,y) (vector / magnitude)
+                        const normalX = distX / distance;   
+                        const normalY = distY / distance;
+
+                        //relative velocity of the other ball
+                        const rVeloX = otherBall.velocity.x - this.velocity.x;
+                        const rVeloY = otherBall.velocity.y - this.velocity.y;
+
+                        //velocity in that direction (dot product)
+                        const velocityAlongNormal = rVeloX * normalX + rVeloY * normalY;
+
+                        const bouciness = 0.8;
+                        const impulse = -(1 * bouciness) * velocityAlongNormal; 
+
+                        const impulseX = impulse * normalX;
+                        const impulseY = impulse * normalY;
+
+                        //update velocity
+                        this.velocity.x -= impulseX;
+                        this.velocity.y -= impulseY;
+                        otherBall.velocity.x += impulseX;
+                        otherBall.velocity.y += impulseY;
+                        
+                        //prevent overlap
+                        const overlap = minDistance - distance;
+                        const moveX = (overlap * normalX) / 2;
+                        const moveY = (overlap * normalY) / 2;
+                        
+                        this.position.x -= moveX;
+                        this.position.y -= moveY;
+                        otherBall.position.x += moveX;
+                        otherBall.position.y += moveY;
+
+
+                    }
+                }
+
+                simulate() {
+                    //update velocity (v_f = v_0 * a*t)
+                    this.velocity.x += gravity.x * timeStep;
+                    this.velocity.y += gravity.y * timeStep;
+                    //update position (x_f = x_0 + v*t) assume velocity is constant for a time step
+                    this.position.x += this.velocity.x * timeStep;
+                    this.position.y += this.velocity.y * timeStep;
+
+                    //make it bounce
+                    if (this.position.x < 0.0) {
+                        // ball.positon.x = 0.0;
+                        this.velocity.x = -this.velocity.x;
+                    }
+                    if (this.position.x > simWidth) {
+                        this.position.x = simWidth;
+                        this.velocity.x = -this.velocity.x;
+                    }
+
+                    if (this.position.y < 0.0) {
+                        this.position.y = 0.0;
+                        this.velocity.y = -this.velocity.y;
+                    }
+
+                    if (this.position.y > simHeight) {
+                        this.position.y = simHeight;
+                        this.velocity.y = -this.velocity.y
+                    }
+                
+                    if (this.position.x < this.radius) {
+                        this.position.x = this.radius;
+                        this.velocity.x = -this.velocity.x;
+                    }
+                    if (this.position.x > simWidth - this.radius) {
+                        this.position.x = simWidth - this.radius;
+                        this.velocity.x = -this.velocity.x;
+                    }
+                    if (this.position.y < this.radius) {
+                        this.position.y = this.radius;
+                        this.velocity.y = -this.velocity.y;
+                    }
+                
+                }
+        };           
+            
+            //update function 
+            function update(balls) {
+                c.clearRect(0, 0, canvas.width, canvas.height);
+                balls.forEach(ball => {
+                    ball.simulate();
+                });
+                    // Check for collisions
+                for (let i = 0; i < balls.length; i++) {
+                    for (let j = i + 1; j < balls.length; j++) {
+                        balls[i].collisions(balls[j]);
+                        }
+                    }
+                balls.forEach(ball => {
+                    ball.draw();
+                });
+                requestAnimationFrame(() => update(balls));
+            }
+            function ballScene() {
+                var balls = [
+                new ball(
+                    radius = 1.0,
+                    position = {x : 1.0, y : 1.0}, // bottom left (closest to 0,0 b/c radius is 0.2)
+                    velocity = {x : 10.0, y : 15.0}
+                ),
+                new ball(
+                    radius = 3,
+                    position = {x : 0.5, y : 0.9}, // bottom left (closest to 0,0 b/c radius is 0.2)
+                    velocity = {x : 20.0, y : 9.0}
+                ),
+                new ball(
+                    radius = 0.2,
+                    position = {x : 0.8, y : 1}, // bottom left (closest to 0,0 b/c radius is 0.2)
+                    velocity = {x : 7.0, y : 19.0}
+                ),
+                new ball(
+                    radius = 0.8,
+                    position = {x :1.2, y : 0.8}, // bottom left (closest to 0,0 b/c radius is 0.2)
+                    velocity = {x : 2.0, y : 0.4}
+                ),
+                new ball(
+                    radius = 0.7,
+                    position = {x : 0.7, y : 0.9}, // bottom left (closest to 0,0 b/c radius is 0.2)
+                    velocity = {x : 30.0, y : 90.0}
+                ),
+                new ball(
+                    radius = 0.9,
+                    position = {x : 0.2, y : 0.2}, // bottom left (closest to 0,0 b/c radius is 0.2)
+                    velocity = {x : 0.0, y : 1.0}
+                )
+                ];
+                update(balls);
+            }
+            ballScene();
+        </script>
+    </body>
+</html>

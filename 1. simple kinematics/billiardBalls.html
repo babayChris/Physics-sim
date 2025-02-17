@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+
+<html>
+    <meta name="viewport" content="width=device-width, initial0scale=1.0"> 
+    <!-- scales with size of screen, therefore works on mobile -->
+    <head>
+        <title>Pinball</title>
+        <style> 
+            /* CSS */
+            body {
+                font-family: verdana;
+                font-size: 15px;
+            }
+            .button {
+                background-color: rgb(71, 78, 78);
+                border: none;
+                color: white;
+                padding: 10px 32px;
+                font-size: 16px;
+                margin: 4px 2px;
+                cursor: pointer;
+            }
+        </style>
+
+        <body>
+            <!-- restart button -->
+            <button class="button" onclick="setupScene()">Restart</button>
+            Score <span id="score">0</span>
+            <!-- span will update the value in the span  <> x <> -->
+            <!-- line break -->
+            <br> 
+            <!-- create canvas where the physics sim will live -->
+            <canvas id="myCanvas"></canvas>
+
+        <script>
+            // get canvas and load vars
+            var canvas = document.getElementById("myCanvas");
+            var c = canvas.getContext("2d");
+            //get window size w/ padding
+            canvas.width = window.innerWidth - 20;
+            canvas.height = window.innerHeight - 100;
+            //
+            var flipperHeight = 1.7; //flipper height in meters
+            //divide pixels over meters to get a conversion factor
+            var cScale = canvas.height / flipperHeight;
+            var simWidth = canvas.width / cScale; //pixel * meters/pixel -> meters
+            var simHeight = canvas.height / cScale;
+            
+            //position and math functions
+            function cX(pos) {
+                return pos.x * cScale;
+            }
+
+            function cY(pos){
+                return canvas.height - (pos.y * cScale);
+            }
+
+            //Vector math
+            class Vector2 {
+                constructor(x = 0.0, y = 0.0) {
+                    this.x = x;
+                    this.y = y;
+                }
+                set(vector) {
+                    this.x = vector.x;
+                    this.y = vector.y;
+                }
+
+                clone() {
+                    return new Vector2(this.x, this.y);
+                }
+
+                add(vector, scale = 1.0) {
+                    this.x += vector.x * scale;
+                    this.y += vector.y * scale;
+                    return this;
+                }
+
+                addVectors(a, b) {
+                    this.x = a.x + b.x;
+                    this.y = a.x + b.x;
+                    return this;
+                }
+
+                subtract(vector, scale = 1.0) {
+                    this.x -= vector.x * scale;
+                    this.y -= vector.y * scale;
+                }
+
+                subtractVectors(a, b) {
+                    this.x = a.x - b.x;
+                    this.y = a.x - b.x;
+                    return this;
+                }
+
+                length() {
+                    return this.x * this.x + this.y * this.y;
+                }
+
+                scale(s) {
+                    this.x *= s;
+                    this.y *= s;
+                }
+
+                dot(v) {
+                    return this.x * v.x + this.y * v.y;
+                }
+
+                perp() {
+                    return new Vector2(-this.y, this.x);
+                }
+            }
+
+            function closestPointOnSegment(p, a, b) {
+                // closest point = a + t(b-a)
+                var ab = new Vector2(); //create new vector to store vector from points a -> b
+                ab.subtractVectors(b, a);  //creates a vector starting from a -> b
+                var t = ab.dot(ab); //computes dot product with itself to get denominator of derived function (b - a) . v (aka total length)
+                if (t == 0.0) { //will only happen if b and a are in the same location, so just set the closest point equal to a
+                    return a.clone();
+                }
+                t = Math.max(0.0, Math.min(1.0, (p.dot(ab) - a.dot(ab) / t))) //compute the rest of the formula if min statement is less than 0, it will be set to 0
+                //And if formula returns more than 1 it defaults to 1
+            }
+
+            // Physics scene
+            //ball class
+            class Ball {
+                constructor(radius, mass, restitution, pos, vel) {
+                    this.radius = radius;
+                    this.mass = mass;
+                    this.restitution = restitution;  //boucieness
+                    this.pos = pos.clone();
+                    this.vel = vel.clone();
+                }
+                simulate(dt, gravity) {
+                    this.vel.add(gravity, dt); //add change in velocity by dt as a scalar and gravity as acceleration 
+                    this.pos.add(this.vel, dt);
+                }
+            }
+
+            class Obstical {
+                constructor(radius, pos, pushVel) {
+                    this.radius = radius; //will be disks
+                    this.pos = pos.clone();
+                    this.pushVel = pushVel;
+                }
+            }
+
+            class Flipper {
+                constructor() {
+                    this.radius = radius;
+                    this.pos = pos.clone();
+                    this.length = length;
+                    this.restAngle = restAngle;
+                    this.maxRotation = Math.abs(maxRotation);
+                }
+            }
+
+
+        </script>
+
+        </body>
+
+
+    </head>
+
+</html>
